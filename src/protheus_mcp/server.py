@@ -5,6 +5,8 @@ from typing import Any
 import uvicorn
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+
 from protheus_mcp.search import search_protheus
 
 logging.basicConfig(
@@ -21,6 +23,7 @@ mcp = FastMCP(
     ),
 )
 
+
 @mcp.tool(
     name="protheus_search",
     description="Search the Protheus FAQ knowledge base for answers about TOTVS Protheus ERP",
@@ -28,16 +31,19 @@ mcp = FastMCP(
 def protheus_search(question: str) -> str:
     logger.info("protheus_search called with question: %.80s", question)
     try:
-        results: list[dict[str, Any]] = search_protheus(question)
+        from typing import Any as _Any
+        results: list[_Any] = search_protheus(question)
     except RuntimeError as e:
         logger.error("Search failed: %s", e)
         return f"Erro ao buscar resultados: {e}"
     except Exception as e:
         logger.error("Unexpected error during search: %s", e)
         return f"Erro inesperado ao buscar resultados. Tente novamente."
+
     if not results:
         logger.info("No results found for: %.80s", question)
         return f"Nenhum resultado encontrado para: {question}"
+
     lines: list[str] = []
     for i, r in enumerate(results, start=1):
         score_pct = r["score"] * 100
@@ -47,19 +53,25 @@ def protheus_search(question: str) -> str:
         if r.get("metadata"):
             lines.append(f"Metadata: {r['metadata']}")
         lines.append("---")
+
     logger.info("Returning %d results for: %.80s", len(results), question)
     return "\n".join(lines)
 
+
 def main() -> None:
+    """Run in stdio mode (default)."""
     mcp.run(transport="stdio")
 
+
 def main_sse() -> None:
+    """Run in SSE mode for remote access."""
     host = os.getenv("MCP_HOST", "0.0.0.0")
     port = int(os.getenv("MCP_PORT", "8092"))
     logger.info("Starting SSE server on %s:%s", host, port)
     app = mcp.sse_app()
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
     uvicorn.run(app, host=host, port=port, log_level="info", proxy_headers=False)
+
 
 if __name__ == "__main__":
     transport = os.getenv("MCP_TRANSPORT", "stdio")
