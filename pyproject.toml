@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "protheus-mcp"
+version = "0.1.0"
+description = "MCP server for Protheus Chat knowledge base search"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp",
+    "psycopg2-binary",
+    "pgvector",
+    "openai",
+    "cohere",
+    "python-dotenv",
+    "uvicorn",
+]
+
+[project.scripts]
+protheus-mcp = "protheus_mcp.server:main"
+mcp-server-protheus = "protheus_mcp.server:main"
+mcp-server-protheus-sse = "protheus_mcp.server:main_sse"
